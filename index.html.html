@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amit Mair - Interactive Career Mind Map</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts - Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- D3.js Visualization Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .node {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .node:hover {
+            filter: drop-shadow(0 10px 15px rgba(59, 130, 246, 0.45));
+        }
+        .link {
+            stroke-opacity: 0.55;
+            stroke-width: 2px;
+            transition: stroke-width 0.3s, stroke-opacity 0.3s;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.4);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(156, 163, 175, 0.7);
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col overflow-hidden transition-colors duration-300">
+
+    <!-- Top Navigation Header -->
+    <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur-md px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-4 z-10 transition-colors duration-300">
+        <div class="flex items-center gap-3">
+            <div class="p-2.5 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-500/20">
+                <i class="fa-solid fa-network-wired text-xl"></i>
+            </div>
+            <div>
+                <h1 class="font-extrabold text-lg sm:text-xl tracking-tight bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+                    AMIT MAIR
+                </h1>
+                <p class="text-xs text-slate-400 font-medium">Interactive Career Blueprint \& Technical Mind Map</p>
+            </div>
+        </div>
+        
+        <!-- Center Actions: Global Search -->
+        <div class="relative w-full sm:w-80 max-w-md">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-500">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </span>
+            <input type="text" id="nodeSearch" placeholder="Search tools, protocols, dashboards..." 
+                   class="w-full bg-slate-800/60 text-slate-100 placeholder-slate-400 pl-10 pr-4 py-2 rounded-xl text-sm border border-slate-700/80 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+            <button id="clearSearch" class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-white hidden">
+                <i class="fa-solid fa-circle-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Right Controls -->
+        <div class="flex items-center gap-3">
+            <button id="themeToggle" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl border border-slate-700/50 transition" title="Toggle Light/Dark Theme">
+                <i class="fa-solid fa-sun" id="themeIcon"></i>
+            </button>
+            <a href="mailto:amairdna@gmail.com" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-blue-600/10 hover:shadow-blue-600/20 transition flex items-center gap-2">
+                <i class="fa-solid fa-envelope"></i> Contact Amit
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <main class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+
+        <!-- Left Side: Interactive Mind Map SVG Canvas -->
+        <div class="flex-1 relative bg-slate-950/40" id="canvasContainer">
+            <!-- Map Control Floating Panel -->
+            <div class="absolute bottom-6 left-6 z-10 flex flex-col gap-2 bg-slate-900/90 border border-slate-800 p-2 rounded-xl shadow-xl backdrop-blur-md">
+                <button onclick="zoomIn()" class="p-2.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition" title="Zoom In">
+                    <i class="fa-solid fa-plus"></i>
+                </button>
+                <button onclick="zoomOut()" class="p-2.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition" title="Zoom Out">
+                    <i class="fa-solid fa-minus"></i>
+                </button>
+                <button onclick="resetZoom()" class="p-2.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition" title="Reset View">
+                    <i class="fa-solid fa-expand"></i>
+                </button>
+                <div class="h-px bg-slate-800 my-1"></div>
+                <button onclick="togglePhysics()" id="physicsBtn" class="p-2.5 bg-blue-600/20 text-blue-400 hover:text-blue-300 rounded-lg transition" title="Toggle Dynamic Force Engine">
+                    <i class="fa-solid fa-circle-nodes"></i>
+                </button>
+            </div>
+
+            <!-- Legend Overlay -->
+            <div class="absolute top-6 left-6 z-10 bg-slate-900/80 border border-slate-800/80 p-3.5 rounded-xl shadow-xl backdrop-blur-md hidden md:block max-w-xs transition-colors">
+                <p class="text-xs font-bold text-slate-400 tracking-wider uppercase mb-2">Category Legend</p>
+                <div class="space-y-1.5 text-xs text-slate-300">
+                    <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-blue-500 block"></span> Automation \& SCADA</div>
+                    <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-cyan-500 block"></span> IT \& OT Infrastructure</div>
+                    <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-emerald-500 block"></span> Operations \& Sustainability</div>
+                    <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-amber-500 block"></span> Experience History</div>
+                    <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-pink-500 block"></span> Professional Certs</div>
+                </div>
+            </div>
+
+            <!-- Interactive Tip -->
+            <div id="interactiveTip" class="absolute top-6 right-6 z-10 bg-slate-900/90 border border-slate-800/80 px-3 py-2 rounded-xl text-xs text-slate-400 shadow-xl pointer-events-none flex items-center gap-2">
+                <i class="fa-solid fa-circle-info text-blue-400 animate-pulse"></i>
+                <span>Drag nodes, click to reveal alignment with DuPont, JCI, Nestlé, TasNetworks</span>
+            </div>
+
+            <!-- The Main Mind Map Canvas -->
+            <svg id="mindmap" class="w-full h-full select-none"></svg>
+        </div>
+
+        <!-- Right Side: Details & Alignment Panel -->
+        <div class="w-full lg:w-[400px] xl:w-[440px] border-t lg:border-t-0 lg:border-l border-slate-800 bg-slate-900/45 backdrop-blur-lg flex flex-col z-10 transition-colors duration-300 overflow-hidden">
+            <div class="p-6 border-b border-slate-800/80 flex justify-between items-center bg-slate-900/60">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-circle-nodes text-blue-500 text-lg"></i>
+                    <h2 class="font-bold text-slate-200">Interactive Inspector</h2>
+                </div>
+                <span class="text-xs bg-slate-800 px-2.5 py-1 rounded-full text-slate-400 font-semibold" id="nodeTypeBadge">Static Overview</span>
+            </div>
+
+            <!-- Sidebar Content -->
+            <div class="flex-1 overflow-y-auto p-6 space-y-6" id="detailPanelContent">
+                <!-- Default State: Amit's Overview -->
+                <div id="defaultDetailView" class="space-y-6">
+                    <div class="text-center pb-4 border-b border-slate-800/60">
+                        <div class="w-20 h-20 bg-gradient-to-tr from-blue-600 to-cyan-500 rounded-2xl mx-auto flex items-center justify-center text-white text-3xl font-bold shadow-xl shadow-blue-500/10 mb-4">
+                            AM
+                        </div>
+                        <h3 class="text-lg font-bold text-white">Amit Mair</h3>
+                        <p class="text-sm text-blue-400 font-medium mt-1">Senior Automation \& Controls Engineer</p>
+                        <p class="text-xs text-slate-400 mt-2">Specializing in high-reliability industrial automation, critical infrastructure systems, and analytical optimization.</p>
+                    </div>
+
+                    <div class="space-y-3">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Strategic Strengths</h4>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div class="p-2.5 bg-slate-800/60 border border-slate-700/30 rounded-xl">
+                                <p class="text-blue-400 font-semibold mb-1"><i class="fa-solid fa-server"></i> IT/OT Systems</p>
+                                <p class="text-slate-400 leading-relaxed">Cross-functional VM management, troubleshooting, and patching coordination.</p>
+                            </div>
+                            <div class="p-2.5 bg-slate-800/60 border border-slate-700/30 rounded-xl">
+                                <p class="text-cyan-400 font-semibold mb-1"><i class="fa-solid fa-chart-line"></i> Telemetry \& IoT</p>
+                                <p class="text-slate-400 leading-relaxed">Ignition transaction groups, MQTT, drawbridge gateways, and telemetry pipelines.</p>
+                            </div>
+                            <div class="p-2.5 bg-slate-800/60 border border-slate-700/30 rounded-xl">
+                                <p class="text-amber-400 font-semibold mb-1"><i class="fa-solid fa-clipboard-check"></i> Project Transitions</p>
+                                <p class="text-slate-400 leading-relaxed">Transitioning systems from Construction to Ops via FAT, ISTs, and SOP audits.</p>
+                            </div>
+                            <div class="p-2.5 bg-slate-800/60 border border-slate-700/30 rounded-xl">
+                                <p class="text-emerald-400 font-semibold mb-1"><i class="fa-solid fa-leaf"></i> Sustainable Analytics</p>
+                                <p class="text-slate-400 leading-relaxed">Monitoring PUE, CBEMA quality events, and generator performance in Power BI.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-4 bg-gradient-to-r from-blue-600/15 to-cyan-500/15 border border-blue-500/20 rounded-2xl">
+                        <h4 class="text-xs font-bold text-blue-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                            <i class="fa-solid fa-briefcase"></i> Active Applications
+                        </h4>
+                        <p class="text-xs text-slate-300 leading-relaxed">
+                            Click any node on the map to see exactly how Amit's qualifications target current job postings at <strong>DuPont, Nestlé, JCI,</strong> or <strong>TasNetworks</strong>.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Active State: Node Details Panel (Will be populated dynamically by JS) -->
+                <div id="activeDetailView" class="hidden space-y-6">
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-3">
+                            <div id="nodeIconContainer" class="w-12 h-12 rounded-xl flex items-center justify-center text-white text-xl shadow-lg"></div>
+                            <div>
+                                <h3 id="nodeTitle" class="text-lg font-bold text-white leading-tight">Node Title</h3>
+                                <p id="nodeSubtitle" class="text-xs font-medium text-slate-400">Node Subtitle</p>
+                            </div>
+                        </div>
+                        <p id="nodeDescription" class="text-sm text-slate-300 leading-relaxed pt-2">Description placeholder...</p>
+                    </div>
+
+                    <!-- Keywords/Subtags -->
+                    <div id="nodeTagsContainer" class="space-y-2">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Related Keywords \& Tools</h4>
+                        <div id="nodeTags" class="flex flex-wrap gap-1.5"></div>
+                    </div>
+
+                    <!-- Strategic Job Alignment Details -->
+                    <div id="nodeAlignmentContainer" class="space-y-3 pt-3 border-t border-slate-800">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <i class="fa-solid fa-bullseye text-emerald-500"></i> Strategic Job Alignment
+                        </h4>
+                        
+                        <!-- DuPont Alignment -->
+                        <div id="dupontAlign" class="p-3 bg-slate-800/40 border border-slate-800 rounded-xl space-y-1.5 hidden">
+                            <span class="text-[10px] uppercase font-bold tracking-wider text-red-400 bg-red-400/10 px-2 py-0.5 rounded-full">DuPont (A\&PC Engineer)</span>
+                            <p id="dupontText" class="text-xs text-slate-300 leading-relaxed">Direct target content...</p>
+                        </div>
+
+                        <!-- Nestlé Alignment -->
+                        <div id="nestleAlign" class="p-3 bg-slate-800/40 border border-slate-800 rounded-xl space-y-1.5 hidden">
+                            <span class="text-[10px] uppercase font-bold tracking-wider text-sky-400 bg-sky-400/10 px-2 py-0.5 rounded-full">Nestlé Gympie (E\&A Engineer)</span>
+                            <p id="nestleText" class="text-xs text-slate-300 leading-relaxed">Direct target content...</p>
+                        </div>
+
+                        <!-- JCI Alignment -->
+                        <div id="jciAlign" class="p-3 bg-slate-800/40 border border-slate-800 rounded-xl space-y-1.5 hidden">
+                            <span class="text-[10px] uppercase font-bold tracking-wider text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">Johnson Controls (BMCS Engineer)</span>
+                            <p id="jciText" class="text-xs text-slate-300 leading-relaxed">Direct target content...</p>
+                        </div>
+
+                        <!-- TasNetworks Alignment -->
+                        <div id="tasAlign" class="p-3 bg-slate-800/40 border border-slate-800 rounded-xl space-y-1.5 hidden">
+                            <span class="text-[10px] uppercase font-bold tracking-wider text-teal-400 bg-teal-400/10 px-2 py-0.5 rounded-full">TasNetworks (App Support Engineer)</span>
+                            <p id="tasText" class="text-xs text-slate-300 leading-relaxed">Direct target content...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Meta -->
+            <div class="p-4 border-t border-slate-800/80 bg-slate-900/60 text-center text-[11px] text-slate-500">
+                Interactive Career Blueprint \&copy; 2026. Designed for Excellence.
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Data model representing the nodes of Amit Mair's Career & Skills Profile
+        const mindMapData = {
+            id: "root",
+            label: "Amit Mair",
+            type: "root",
+            category: "root",
+            icon: "fa-user-tie",
+            color: "#3b82f6",
+            size: 45,
+            description: "Senior Automation & Controls Engineer specializing in high-reliability industrial automation, critical infrastructure systems, and analytical optimization. Blending deep control systems architecture with robust IT/OT networks.",
+            tags: ["Senior Automation", "Controls Engineer", "Mechatronics", "Australia", "IT/OT Specialist", "High Uptime"],
+            children: [
+                // Experience Node
+                {
+                    id: "experience",
+                    label: "Professional Experience",
+                    type: "hub",
+                    category: "experience",
+                    icon: "fa-briefcase",
+                    color: "#f59e0b",
+                    size: 32,
+                    description: "Engineering leadership spanning lifecycle handovers, critical operations, and high-uptime facilities.",
+                    tags: ["Vantage Data Centers", "Alghanim International", "DNA Expert Services", "Incident Management"],
+                    children: [
+                        {
+                            id: "exp_vantage",
+                            label: "Vantage Data Centers",
+                            type: "leaf",
+                            category: "experience",
+                            icon: "fa-server",
+                            color: "#fbbf24",
+                            size: 24,
+                            subtitle: "Senior Automation Engineer",
+                            description: "Directed control systems from construction phase to operations. Setup redundancy monitors, gate-alarm pipelines across EMEA, and managed critical patching of BMS gateways while safeguarding zero-downtime operations.",
+                            tags: ["Construction to Operations", "EMEA Redundancy Setup", "ISTs", "FATs", "Vendor Management", "Patching Coordination"],
+                            alignments: {
+                                dupont: "Perfect match for DuPont's demand to coordinate FAT/SAT, commission plant upgrades, write technical documentation, and deliver reliable systems to site operators.",
+                                nestle: "Aligns with Nestlé's focus on capital project commissioning, equipment start-up, and coordinating requirements among production and quality stakeholders.",
+                                jci: "Applies directly to JCI's focus on large construction and fit-out phases, ensuring software testing, QA standards, and customer specification delivery.",
+                                tasnetworks: "Supports TasNetworks' requirement to manage and coordinate complex site deployments, upgrades, and application transitions under tight deadlines."
+                            }
+                        },
+                        {
+                            id: "exp_alghanim",
+                            label: "Alghanim International",
+                            type: "leaf",
+                            category: "experience",
+                            icon: "fa-industry",
+                            color: "#fbbf24",
+                            size: 24,
+                            subtitle: "BMS/BAS Engineer",
+                            description: "Commissioned complex control systems (Siemens, Schneider) for utility infrastructure, emphasizing loop testing, calibration of field instruments, and electrical safety schematics.",
+                            tags: ["Instrumentation Loops", "Siemens S7", "Schneider TAC", "Calibration Plans", "SOPs \& MOPs"],
+                            alignments: {
+                                dupont: "Matches DuPont's core focus on field instrumentation troubleshooting (pressure, flow, level, temperature) and safe work practices (MCCs, drives/VSDs).",
+                                nestle: "Aligns with Nestlé's requirement to perform instrument calibrations, update SLDs, and comply with strict internal engineering audits (EFCA).",
+                                jci: "Direct match for Johnson Controls' 5+ years BMCS experience requirement, dealing with HVAC Controls, digital offerings, and equipment schedules."
+                            }
+                        },
+                        {
+                            id: "exp_dna",
+                            label: "DNA Expert Services",
+                            type: "leaf",
+                            category: "experience",
+                            icon: "fa-gears",
+                            color: "#fbbf24",
+                            size: 24,
+                            subtitle: "Project Engineer",
+                            description: "Managed control system engineering, programming PLC programs, creating SCADA interfaces, and maintaining backup routines for various heavy industrial plants.",
+                            tags: ["PLC Logic", "SCADA Graphics", "IBM Maximo", "Emergency Interlocks", "Failsafes"],
+                            alignments: {
+                                dupont: "Perfect for DuPont's 'practical PLC/HMI capability' and establishing site electrical safety/failsafe circuits.",
+                                nestle: "Applies to Nestlé's need for starting up production lines, designing user specifications (URS), and functional design specifications (FDS)."
+                            }
+                        }
+                    ]
+                },
+                // Skills Node - Automation/SCADA
+                {
+                    id: "scada_hub",
+                    label: "Automation, SCADA \& Telemetry",
+                    type: "hub",
+                    category: "automation",
+                    icon: "fa-cubes",
+                    color: "#3b82f6",
+                    size: 32,
+                    description: "Deep capabilities in software, SCADA frameworks, telemetry networks, and logic design to enable high-availability supervisory architectures.",
+                    tags: ["PLC/SCADA", "Ignition", "Studio 5000", "MQTT", "Database Queries", "SE StruxureWare"],
+                    children: [
+                        {
+                            id: "skill_ignition_telemetry",
+                            label: "Ignition \& Telemetry",
+                            type: "leaf",
+                            category: "automation",
+                            icon: "fa-satellite-dish",
+                            color: "#60a5fa",
+                            size: 22,
+                            description: "Expert in Ignition SCADA systems. Configured gateway alarm pipelines and email notification networks across all EMEA facilities. Setup peer-to-peer hub & spoke gateway models to fix BMS lag/response issues.",
+                            tags: ["Ignition", "MQTT", "Drawbridge", "Transaction Groups", "Hub \& Spoke Gateways", "BMS Lag Fixes", "EMEA Pipelines"],
+                            alignments: {
+                                dupont: "Directly benefits DuPont's SCADA and industrial network reliability practices (Ethernet/IP, troubleshooting communication lags).",
+                                jci: "Enhances JCI's smart digital offerings and BMCS control software integrations with high-end, third-party platforms."
+                            }
+                        },
+                        {
+                            id: "skill_struxureware",
+                            label: "SE StruxureWare \& HVAC",
+                            type: "leaf",
+                            category: "automation",
+                            icon: "fa-window-maximize",
+                            color: "#60a5fa",
+                            size: 22,
+                            description: "Advanced engineering and HVAC control optimization in EcoStruxure/StruxureWare. Experienced with critical cooling systems and mechanical controls.",
+                            tags: ["StruxureWare", "EcoStruxure", "Chillers", "DOAS", "CRAHs", "FCUs", "Heat Pumps"],
+                            alignments: {
+                                jci: "Highly applicable for JCI's BMCS Service position, specifically targeting high-level HVAC Controls and 3rd party product interfaces."
+                            }
+                        },
+                        {
+                            id: "skill_rockwell_plc",
+                            label: "Rockwell \& Studio 5000",
+                            type: "leaf",
+                            category: "automation",
+                            icon: "fa-terminal",
+                            color: "#60a5fa",
+                            size: 22,
+                            description: "Programming logic, safety sequences, and supervision interfaces in Studio 5000 / CompactLogix. Designed a Redundancy Monitor setup on Ignition for Studio 5000 across EMEA.",
+                            tags: ["CompactLogix", "Studio 5000", "Redundancy Monitoring", "Ethernet/IP", "DeviceNet"],
+                            alignments: {
+                                dupont: "Matches DuPont's specific demand for: 'Practical PLC/HMI capability (Rockwell CompactLogix & FactoryTalk View SE) plus industrial networks.'",
+                                nestle: "Supports Nestlé's requirement to possess deep technical knowledge of the factory's existing E&A systems and logic configurations."
+                            }
+                        },
+                        {
+                            id: "skill_languages",
+                            label: "OT Languages \& SQL",
+                            type: "leaf",
+                            category: "automation",
+                            icon: "fa-code",
+                            color: "#60a5fa",
+                            size: 22,
+                            description: "Programming and querying database engines to pull telemetry and event logs for analysis. Basic logic writing in scripting languages.",
+                            tags: ["SQL Queries", "Python Scripts", "Ignition Scripts", "Database Integration"],
+                            alignments: {
+                                tasnetworks: "Direct match for TasNetworks' requirement for technical capabilities to query enterprise databases, handle data flows, and build analytical queries."
+                            }
+                        }
+                    ]
+                },
+                // IT / OT Infrastructure & Diagnostics Hub (Expanded!)
+                {
+                    id: "it_ot_hub",
+                    label: "IT \& OT Infrastructure",
+                    type: "hub",
+                    category: "infrastructure",
+                    icon: "fa-network-wired",
+                    color: "#06b6d4",
+                    size: 32,
+                    description: "High-level support of industrial network paths, server systems, physical device integrations, and protocol configurations in critical Data Center settings.",
+                    tags: ["Networks", "Virtual Machines", "Modbus", "Putty", "Patching", "Protocols", "Wireless"],
+                    children: [
+                        {
+                            id: "skill_networks",
+                            label: "DC Networks \& Virtualization",
+                            type: "leaf",
+                            category: "infrastructure",
+                            icon: "fa-shield-halved",
+                            color: "#22d3ee",
+                            size: 22,
+                            description: "Managing virtual machines, network configurations, and coordinating with cross-functional IT groups to execute critical OS patching and resolve communications outages.",
+                            tags: ["VM Administration", "IT/OT Coordination", "BMS Patching", "Outage Investigations", "System Restores"],
+                            alignments: {
+                                tasnetworks: "Perfect alignment with TasNetworks' focus on supporting complex IT systems in business-critical settings, patch management support, and resolving outages with network teams.",
+                                jci: "Meets JCI's requirement of high-level knowledge in IT and server environments for smart digital control architectures."
+                            }
+                        },
+                        {
+                            id: "skill_protocols",
+                            label: "Industrial Protocols \& BACnet Server",
+                            type: "leaf",
+                            category: "infrastructure",
+                            icon: "fa-diagram-project",
+                            color: "#22d3ee",
+                            size: 22,
+                            description: "Deep configuration knowledge of industrial communication frameworks. Specializing in mapping BACnet Servers, Modbus TCP/RTU interfaces, and Ethernet/IP integration routes to link third-party equipment to BMS systems.",
+                            tags: ["BACnet Server", "BACnet/IP", "BACnet MSTP", "Modbus TCP/RTU", "Ethernet/IP", "Device Mapping", "BMS Integration"],
+                            alignments: {
+                                jci: "Fulfills the core requirement to program and configure integrations between JCI systems and high-priority third-party protocols.",
+                                dupont: "Matches their search for engineers capable of configuring robust industrial network parameters and field communication loops."
+                            }
+                        },
+                        {
+                            id: "skill_wireless",
+                            label: "Wireless Systems \& Wing Manager",
+                            type: "leaf",
+                            category: "infrastructure",
+                            icon: "fa-wifi",
+                            color: "#22d3ee",
+                            size: 22,
+                            description: "Experience implementing, configuring, and maintaining critical wireless monitoring networks including Wing Manager architectures to secure environmental telemetry in high-reliability zones.",
+                            tags: ["Wing Manager", "Wireless Sensor Nets", "Environmental Telemetry", "Signal Optimization", "Sensor Integration"],
+                            alignments: {
+                                jci: "Directly relates to modern digital offerings and building wireless integration schemes for smart environmental controls.",
+                                tasnetworks: "Supports the management of decentralized sensor arrays and next-generation IoT/telemetry hardware."
+                            }
+                        },
+                        {
+                            id: "skill_diag_tools",
+                            label: "Diagnostic Software \& Tools",
+                            type: "leaf",
+                            category: "infrastructure",
+                            icon: "fa-screwdriver-wrench",
+                            color: "#22d3ee",
+                            size: 22,
+                            description: "Advanced application of diagnostic utilities, network monitors, and terminal shells to run deep device investigations and register mappings.",
+                            tags: ["Modbus Poll", "Modscan", "Putty", "Wireshark", "BACnet Explorer", "SE Power Commission", "Serial Sniffers"],
+                            alignments: {
+                                dupont: "Strong asset for DuPont's troubleshooting of field devices and identifying communication loop issues.",
+                                jci: "Directly relates to JCI's requirement for troubleshooting complex systems using advanced computer/Windows diagnostic software."
+                            }
+                        },
+                        {
+                            id: "skill_m365",
+                            label: "M365 \& Collaboration",
+                            type: "leaf",
+                            category: "infrastructure",
+                            icon: "fa-microsoft",
+                            color: "#22d3ee",
+                            size: 22,
+                            description: "Leveraging M365 ecosystems and documentation suites for reporting, project tracking, and standard templates creation.",
+                            tags: ["Microsoft 365", "MS Excel", "MS Projects", "SharePoint"],
+                            alignments: {
+                                tasnetworks: "Directly answers TasNetworks' desirable criteria for: 'Hands-on experience with M365 and associated enterprise technologies.'"
+                            }
+                        }
+                    ]
+                },
+                // Operational Excellence & Sustainability Hub
+                {
+                    id: "safety_hub",
+                    label: "Operations \& Sustainability",
+                    type: "hub",
+                    category: "safety",
+                    icon: "fa-seedling",
+                    color: "#10b981",
+                    size: 32,
+                    description: "Combining risk reduction methodologies, operational KPIs, document reviews, and energy/power data analytics to meet sustainability goals.",
+                    tags: ["Power BI", "PUE", "CBEMA", "Review of SOPs", "MOC", "KPIs"],
+                    children: [
+                        {
+                            id: "skill_powerbi_pue",
+                            label: "Power BI \& Analytics",
+                            type: "leaf",
+                            category: "safety",
+                            icon: "fa-chart-pie",
+                            color: "#34d399",
+                            size: 22,
+                            description: "Built custom Power BI dashboards tracking PUE, PQM metrics, MTZ breakers, generator runtimes, and CBEMA power quality events to drive sustainable plant goals.",
+                            tags: ["Power BI", "PUE Targets", "PQMs", "MTZ Breakers", "Generator Run-times", "CBEMA Events", "Sustainability Goals"],
+                            alignments: {
+                                dupont: "Directly matches DuPont's goal of administering the data historian and creating reliable analysis to report on site electrical metrics to leadership.",
+                                tasnetworks: "Provides strong analytical capability to perform data monitoring and root cause analysis across essential utility parameters."
+                            }
+                        },
+                        {
+                            id: "skill_moc_kpis",
+                            label: "MOC \& Operational KPIs",
+                            type: "leaf",
+                            category: "safety",
+                            icon: "fa-clipboard-list",
+                            color: "#34d399",
+                            size: 22,
+                            description: "Adhering to strict Management of Change workflows while tracking operational ticket parameters (SLA/MTTR). Reviewing standard MOPs, SOPs, FDS, and commissioning test scripts.",
+                            tags: ["MOC (ServiceNow)", "KPIs (MTTR/Tickets)", "MOPs \& SOPs", "FDS Reviews", "Test Scripts"],
+                            alignments: {
+                                dupont: "Matches DuPont's core objective: 'Ensure changes follow site Management of Change (MOC) and are properly risk assessed, tested and documented.'",
+                                nestle: "Aligns with Nestlé's MES-E&A change control protocols and maintenance planning tools.",
+                                tasnetworks: "Meets TasNetworks' requirement to manage incidents, service requests, and problem records using ITIL ticketing protocols (ServiceNow/ManageEngine)."
+                            }
+                        },
+                        {
+                            id: "skill_ops_support",
+                            label: "Site Ops \& Operational Support",
+                            type: "leaf",
+                            category: "safety",
+                            icon: "fa-users-gear",
+                            color: "#34d399",
+                            size: 22,
+                            description: "Providing direct technical support, system access audits, level-2 troubleshooting, and post-incident AARs / RCAs to raise operating standards.",
+                            tags: ["Operations Support", "AARs \& RCAs", "System Improvements", "Site Training"],
+                            alignments: {
+                                dupont: "Perfect match for DuPont's 'What Success Looks Like' metrics: 'Operators and maintainers receive practical support, coaching and training.'",
+                                nestle: "Supports Nestlé's commitment to training operators/crews and enforcing an attitude of absolute intolerance for unsafe situations."
+                            }
+                        }
+                    ]
+                },
+                // Certifications Node
+                {
+                    id: "certs_hub",
+                    label: "Professional Certs",
+                    type: "hub",
+                    category: "certs",
+                    icon: "fa-award",
+                    color: "#ec4899",
+                    size: 32,
+                    description: "Standard industry designations proving advanced project methodology execution and expertise in critical facility management.",
+                    tags: ["PMP", "CDCMP", "Scope Management"],
+                    children: [
+                        {
+                            id: "cert_pmp",
+                            label: "PMP\textsuperscript{\textregistered}",
+                            type: "leaf",
+                            category: "certs",
+                            icon: "fa-circle-check",
+                            color: "#f472b6",
+                            size: 22,
+                            subtitle: "Project Management Institute",
+                            description: "Certified Project Management Professional (PMP). Expertise in budgeting, scheduling, risk analysis, and vendor FAT/SAT handovers.",
+                            tags: ["PMP", "Scope Control", "FAT/SAT Commissions", "Vendor Handovers"],
+                            alignments: {
+                                dupont: "Aids in DuPont's continuous improvement goals and capital projects (FDS specifications, budget control, timeline delivery).",
+                                nestle: "Aligns with Nestlé's focus on capital projects timeline, stakeholder coordination, and budget tracking."
+                            }
+                        },
+                        {
+                            id: "cert_cdcmp",
+                            label: "CDCMP\textsuperscript{\textregistered}",
+                            type: "leaf",
+                            category: "certs",
+                            icon: "fa-shield",
+                            color: "#f472b6",
+                            size: 22,
+                            subtitle: "CNet Training",
+                            description: "Certified Data Centre Management Professional (CDCMP). In-depth mastery of high-availability, high-reliability infrastructure architecture, and risk avoidance planning.",
+                            tags: ["CDCMP", "High Availability", "DC Infrastructure", "Risk Avoidance"],
+                            alignments: {
+                                tasnetworks: "Validates deep competency in maintaining complex enterprise frameworks in critical environments.",
+                                jci: "Meets JCI's high-level server and technology integration environment requirements."
+                            }
+                        }
+                    ]
+                }
+            ]
+        };
+
+        const nodes = [];
+        const links = [];
+
+        function flattenData(node, parent = null) {
+            nodes.push({
+                id: node.id,
+                label: node.label,
+                type: node.type,
+                category: node.category,
+                icon: node.icon,
+                color: node.color,
+                size: node.size,
+                subtitle: node.subtitle || "",
+                description: node.description || "",
+                tags: node.tags || [],
+                alignments: node.alignments || null
+            });
+
+            if (parent) {
+                links.push({
+                    source: parent.id,
+                    target: node.id,
+                    color: parent.color
+                });
+            }
+
+            if (node.children) {
+                node.children.forEach(child => flattenData(child, node));
+            }
+        }
+
+        flattenData(mindMapData);
+
+        const svg = d3.select("#mindmap");
+        const canvasContainer = document.getElementById("canvasContainer");
+        let width = canvasContainer.clientWidth;
+        let height = canvasContainer.clientHeight;
+        
+        // Define clean markers for directional arrows
+        svg.append("defs").append("marker")
+            .attr("id", "arrow")
+            .attr("viewBox", "0 -5 10 10")
+            .attr("refX", 25)
+            .attr("refY", 0)
+            .attr("markerWidth", 6)
+            .attr("markerHeight", 6)
+            .attr("orient", "auto")
+            .append("path")
+            .attr("d", "M0,-5L10,0L0,5")
+            .attr("fill", "#475569");
+
+        // SVG main group container to handle zoom operations
+        const g = svg.append("g").attr("class", "zoom-group");
+
+        // Setup Zoom actions
+        const zoom = d3.zoom()
+            .scaleExtent([0.15, 3.5])
+            .on("zoom", (event) => {
+                g.attr("transform", event.transform);
+            });
+
+        svg.call(zoom);
+
+        // Center view on load
+        resetZoom();
+
+        // Increased link distance and collision boundaries to accommodate the larger node set
+        let simulation = d3.forceSimulation(nodes)
+            .force("link", d3.forceLink(links).id(d => d.id).distance(150))
+            .force("charge", d3.forceManyBody().strength(-600))
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .force("collide", d3.forceCollide().radius(d => d.size + 30));
+
+        // Create the Link SVG lines
+        const link = g.append("g")
+            .attr("class", "links")
+            .selectAll("line")
+            .data(links)
+            .enter().append("line")
+            .attr("class", "link")
+            .attr("stroke", d => d.color)
+            .attr("stroke-width", 2.5);
+
+        // Create the Node Group containers
+        const node = g.append("g")
+            .attr("class", "nodes")
+            .selectAll(".node-group")
+            .data(nodes)
+            .enter().append("g")
+            .attr("class", "node")
+            .call(d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended))
+            .on("click", (event, d) => {
+                // Prevent trigger if dragging
+                if (event.defaultPrevented) return;
+                inspectNode(d);
+            });
+
+        // Paint circle bounds for nodes
+        node.append("circle")
+            .attr("r", d => d.size)
+            .attr("fill", d => d.type === "root" ? "url(#rootGrad)" : d.color + "18")
+            .attr("stroke", d => d.color)
+            .attr("stroke-width", d => d.type === "root" ? 4 : 2);
+
+        // Define premium gradient fill for Root (Amit Mair)
+        const defs = svg.append("defs");
+        const rootGrad = defs.append("linearGradient")
+            .attr("id", "rootGrad")
+            .attr("x1", "0%").attr("y1", "0%")
+            .attr("x2", "100%").attr("y2", "100%");
+        rootGrad.append("stop").attr("offset", "0%").attr("stop-color", "#3b82f6");
+        rootGrad.append("stop").attr("offset", "100%").attr("stop-color", "#06b6d4");
+
+        // Embed beautiful FontAwesome icons in node circles
+        node.append("foreignObject")
+            .attr("width", d => d.size * 2)
+            .attr("height", d => d.size * 2)
+            .attr("x", d => -d.size)
+            .attr("y", d => -d.size * 1.05)
+            .attr("class", "pointer-events-none")
+            .html(d => `
+                <div class="w-full h-full flex items-center justify-center" style="color: ${d.color};">
+                    <i class="fa-solid ${d.icon}" style="font-size: ${d.size * 0.72}px;"></i>
+                </div>
+            `);
+
+        // Node Label texts
+        node.append("text")
+            .attr("dy", d => d.size + 18)
+            .attr("text-anchor", "middle")
+            .attr("class", "text-[11px] font-bold tracking-wide fill-slate-300 pointer-events-none transition-colors duration-300 node-text")
+            .text(d => d.label);
+
+        // Subtitle indicator texts for jobs/specialties
+        node.append("text")
+            .attr("dy", d => d.size + 30)
+            .attr("text-anchor", "middle")
+            .attr("class", "text-[9px] font-semibold tracking-wide fill-slate-500 pointer-events-none subtitle-text")
+            .text(d => d.subtitle || "");
+
+        // Real-time animation tick loops
+        simulation.on("tick", () => {
+            link
+                .attr("x1", d => d.source.x)
+                .attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x)
+                .attr("y2", d => d.target.y);
+
+            node
+                .attr("transform", d => `translate(${d.x}, ${d.y})`);
+        });
+
+        // Drag helper routines
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+
+        // Camera controls functions
+        function zoomIn() {
+            svg.transition().duration(400).call(zoom.scaleBy, 1.3);
+        }
+
+        function zoomOut() {
+            svg.transition().duration(400).call(zoom.scaleBy, 0.7);
+        }
+
+        function resetZoom() {
+            const currentWidth = document.getElementById("canvasContainer").clientWidth;
+            const currentHeight = document.getElementById("canvasContainer").clientHeight;
+            svg.transition().duration(600).call(
+                zoom.transform,
+                d3.zoomIdentity.translate(currentWidth / 2 - 220, currentHeight / 2 - 220).scale(0.7)
+            );
+        }
+
+        // Toggle physics force engine
+        let physicsEnabled = true;
+        function togglePhysics() {
+            physicsEnabled = !physicsEnabled;
+            const btn = document.getElementById("physicsBtn");
+            if (physicsEnabled) {
+                simulation.alphaTarget(0.3).restart();
+                btn.classList.add("bg-blue-600/20", "text-blue-400");
+                btn.classList.remove("bg-slate-800", "text-slate-500");
+            } else {
+                simulation.stop();
+                btn.classList.remove("bg-blue-600/20", "text-blue-400");
+                btn.classList.add("bg-slate-800", "text-slate-500");
+            }
+        }
+
+        // Handles node clicks and populates the details/alignment sidebar
+        function inspectNode(d) {
+            // Update node selection visual rings
+            d3.selectAll("circle").attr("stroke-width", node => node.type === "root" ? 4 : 2);
+            d3.select(event.currentTarget).select("circle").attr("stroke-width", 5);
+
+            // Pop elements
+            const activeView = document.getElementById("activeDetailView");
+            const defaultView = document.getElementById("defaultDetailView");
+            const badge = document.getElementById("nodeTypeBadge");
+            const title = document.getElementById("nodeTitle");
+            const subtitle = document.getElementById("nodeSubtitle");
+            const iconContainer = document.getElementById("nodeIconContainer");
+            const description = document.getElementById("nodeDescription");
+            const tags = document.getElementById("nodeTags");
+
+            // Setup container styles
+            defaultView.classList.add("hidden");
+            activeView.classList.remove("hidden");
+
+            // Fill header elements
+            title.textContent = d.label;
+            subtitle.textContent = d.subtitle || d.category.toUpperCase() + " NODE";
+            badge.textContent = d.type.toUpperCase();
+            description.textContent = d.description;
+
+            // Update badge color
+            badge.style.backgroundColor = d.color + "15";
+            badge.style.color = d.color;
+
+            // Icon background style
+            iconContainer.innerHTML = `<i class="fa-solid ${d.icon}"></i>`;
+            iconContainer.style.backgroundColor = d.color;
+            iconContainer.style.boxShadow = `0 8px 16px ${d.color}25`;
+
+            // Process tag metrics
+            tags.innerHTML = "";
+            d.tags.forEach(tag => {
+                const tagEl = document.createElement("span");
+                tagEl.className = "text-[10px] px-2.5 py-1 bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg border border-slate-700/40 cursor-default transition";
+                tagEl.textContent = tag;
+                tags.appendChild(tagEl);
+            });
+
+            // Handle target alignments outputs
+            const alignments = d.alignments;
+            const container = document.getElementById("nodeAlignmentContainer");
+            
+            const dupontBlock = document.getElementById("dupontAlign");
+            const nestleBlock = document.getElementById("nestleAlign");
+            const jciBlock = document.getElementById("jciAlign");
+            const tasBlock = document.getElementById("tasAlign");
+
+            if (alignments) {
+                container.classList.remove("hidden");
+                
+                // DuPont Check
+                if (alignments.dupont) {
+                    dupontBlock.classList.remove("hidden");
+                    document.getElementById("dupontText").textContent = alignments.dupont;
+                } else { dupontBlock.classList.add("hidden"); }
+
+                // Nestlé Check
+                if (alignments.nestle) {
+                    nestleBlock.classList.remove("hidden");
+                    document.getElementById("nestleText").textContent = alignments.nestle;
+                } else { nestleBlock.classList.add("hidden"); }
+
+                // JCI Check
+                if (alignments.jci) {
+                    jciBlock.classList.remove("hidden");
+                    document.getElementById("jciText").textContent = alignments.jci;
+                } else { jciBlock.classList.add("hidden"); }
+
+                // TasNetworks Check
+                if (alignments.tasnetworks) {
+                    tasBlock.classList.remove("hidden");
+                    document.getElementById("tasText").textContent = alignments.tasnetworks;
+                } else { tasBlock.classList.add("hidden"); }
+            } else {
+                container.classList.add("hidden");
+            }
+        }
+
+        // Handles keyword search inputs to highlight matched nodes
+        const searchInput = document.getElementById("nodeSearch");
+        const clearBtn = document.getElementById("clearSearch");
+
+        searchInput.addEventListener("input", function(e) {
+            const query = e.target.value.toLowerCase().trim();
+            if (query.length > 0) {
+                clearBtn.classList.remove("hidden");
+                highlightNodes(query);
+            } else {
+                clearBtn.classList.add("hidden");
+                resetHighlight();
+            }
+        });
+
+        clearBtn.addEventListener("click", () => {
+            searchInput.value = "";
+            clearBtn.classList.add("hidden");
+            resetHighlight();
+        });
+
+        function highlightNodes(query) {
+            node.selectAll("circle").style("opacity", d => {
+                const match = d.label.toLowerCase().includes(query) || 
+                              d.description.toLowerCase().includes(query) ||
+                              d.tags.some(tag => tag.toLowerCase().includes(query));
+                return match ? 1 : 0.15;
+            });
+            node.selectAll(".node-text").style("opacity", d => {
+                const match = d.label.toLowerCase().includes(query) || 
+                              d.description.toLowerCase().includes(query) ||
+                              d.tags.some(tag => tag.toLowerCase().includes(query));
+                return match ? 1 : 0.15;
+            });
+            node.selectAll(".subtitle-text").style("opacity", d => {
+                const match = d.label.toLowerCase().includes(query) || 
+                              d.description.toLowerCase().includes(query) ||
+                              d.tags.some(tag => tag.toLowerCase().includes(query));
+                return match ? 1 : 0.15;
+            });
+            link.style("opacity", 0.08);
+        }
+
+        function resetHighlight() {
+            node.selectAll("circle").style("opacity", 1);
+            node.selectAll(".node-text").style("opacity", 1);
+            node.selectAll(".subtitle-text").style("opacity", 1);
+            link.style("opacity", 0.55);
+        }
+
+        // Handles light/dark aesthetics toggle
+        let darkMode = true;
+        const themeToggle = document.getElementById("themeToggle");
+        const themeIcon = document.getElementById("themeIcon");
+
+        themeToggle.addEventListener("click", () => {
+            darkMode = !darkMode;
+            document.body.classList.toggle("bg-slate-900", darkMode);
+            document.body.classList.toggle("text-slate-100", darkMode);
+            document.body.classList.toggle("bg-slate-50", !darkMode);
+            document.body.classList.toggle("text-slate-800", !darkMode);
+
+            // Toggle top header classes
+            const header = document.querySelector("header");
+            header.classList.toggle("border-slate-800", darkMode);
+            header.classList.toggle("bg-slate-900/90", darkMode);
+            header.classList.toggle("border-slate-200", !darkMode);
+            header.classList.toggle("bg-white/90", !darkMode);
+
+            // Toggle right sidebar classes
+            const sidebar = document.querySelector("main > div:last-child");
+            sidebar.classList.toggle("border-slate-800", darkMode);
+            sidebar.classList.toggle("bg-slate-900/45", darkMode);
+            sidebar.classList.toggle("border-slate-200", !darkMode);
+            sidebar.classList.toggle("bg-white/80", !darkMode);
+
+            // Update SVG backgrounds & texts
+            d3.selectAll(".node-text").style("fill", darkMode ? "#cbd5e1" : "#1e293b");
+
+            if (darkMode) {
+                themeIcon.className = "fa-solid fa-sun";
+                themeToggle.className = "p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl border border-slate-700/50 transition";
+            } else {
+                themeIcon.className = "fa-solid fa-moon";
+                themeToggle.className = "p-2 bg-slate-200 hover:bg-slate-300 text-slate-700 hover:text-slate-900 rounded-xl border border-slate-300 transition";
+            }
+        });
+
+        // Track window resizing and update coordinates
+        window.addEventListener("resize", () => {
+            const newW = canvasContainer.clientWidth;
+            const newH = canvasContainer.clientHeight;
+            svg.attr("width", newW).attr("height", newH);
+            simulation.force("center", d3.forceCenter(newW / 2, newH / 2)).alpha(0.3).restart();
+        });
+    </script>
+</body>
+</html>
+```eaf
